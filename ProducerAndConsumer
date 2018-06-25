@@ -1,0 +1,29 @@
+Producer
+while (true) {
+       item = generate_item()
+       mutex.lock()
+       fifo_queue.push(item)
+       mutex.unlock()
+       condition.signal()
+}
+
+Consumers
+while(true) {
+       mutex.lock()
+       while(fifo_queue.empty()) { //<--fix
+             condition.wait(mutex)
+       }
+       item = fifo_queue.remove()
+       mutex.unlock()
+       process_item(item)
+}
+
+This is a scenario that causes an exception
+1. Consumer A waits upon the condition since the FIFO queue is empty
+2. Producer pushes an item and unlock the mutex
+3. Before the producer signals, Consumer B takes the item in FIFO queue
+4. Producer now sends a condition_signal which wakes up Consumer A
+5. Consumer A believes that there is an item in the queue and try to remove an item, which causes an exception
+
+Fix.
+Consumer needs to check if queue is empty or not even after it gets a condition_signal from Producer
